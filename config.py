@@ -41,7 +41,7 @@ class Args:
                             help='drop out probability')
 
         # 2e-5
-        parser.add_argument('--lr', default=1e-5, type=float,
+        parser.add_argument('--lr', default=3e-5, type=float,
                             help='bert学习率')
         # 2e-3
         parser.add_argument('--other_lr', default=3e-4, type=float,
@@ -60,7 +60,6 @@ class Args:
 
         parser.add_argument('--train_batch_size', default=32, type=int)
         parser.add_argument('--use_dev_num', default=32, type=int, help="用于验证和测试的数量")
-        parser.add_argument('--eval_steps', default=32, type=int, help="多少步进行验证")
 
 
 

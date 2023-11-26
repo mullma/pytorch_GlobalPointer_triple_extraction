@@ -67,80 +67,66 @@ class Collate:
             if sequence[i:i + n] == pattern:
                 return i
         return -1
-      batch_head_labels = []
-      batch_tail_labels = []
-      batch_entity_labels = []
+      batch_subject_labels = []
+      batch_object_labels = []
+      batch_subject_ids = []
       batch_token_ids = []
       batch_attention_mask = []
       batch_token_type_ids = []
       callback = []
       for i, (text, text_labels) in enumerate(batch):
-          if len(text) > self.maxlen - 2:
-            text = text[:self.maxlen - 2]
+          if len(text) > self.maxlen:
+            text = text[:self.maxlen]
           tokens = [i for i in text]
-          tokens = ['[CLS]'] + tokens + ['[SEP]']
-          spoes = set()
+          spoes = {}
           callback_text_labels = []
           for s, p, o in text_labels:
             p = self.tag2id[p]
-            s = [i for i in s]
-            o = [i for i in o]
-            s_idx = search(s, tokens)  # 主体的头
-            o_idx = search(o, tokens)  # 客体的头
+            s_idx = search(s, text)
+            o_idx = search(o, text)
             if s_idx != -1 and o_idx != -1:
-              callback_text_labels.append(("".join(s), self.id2tag[p], "".join(o)))
-              spoes.add((s_idx, s_idx + len(s) - 1, p, o_idx, o_idx + len(o) - 1))
+              callback_text_labels.append((s, self.id2tag[p], o))
+              s = (s_idx, s_idx + len(s) - 1)
+              o = (o_idx, o_idx + len(o) - 1, p)
+              if s not in spoes:
+                  spoes[s] = []
+              spoes[s].append(o)
           # print(text_labels)
           # print(text)
           # print(spoes)
-          # 构建标签
-          entity_labels = [set() for _ in range(2)]  # [主体， 客体]
-          head_labels = [set() for _ in range(len(self.tag2id))] # 每个关系中主体和客体的头
-          tail_labels = [set() for _ in range(len(self.tag2id))] # 每个关系中主体和客体的尾
-          for sh, st, p, oh, ot in spoes:
-              entity_labels[0].add((sh, st))
-              entity_labels[1].add((oh, ot))
-              head_labels[p].add((sh, oh))
-              tail_labels[p].add((st, ot))
-          
-          
-          for label in entity_labels + head_labels + tail_labels:
-            if not label:  # 至少要有一个标签
-                label.add((0, 0))  # 如果没有则用0填充
-          
-          # entity_labels:(2, 1, 2) head_labels:(49, 1, 2) tail_labels:(49, 1, 2)
-          """
-          对于entity_labels而言，第一个集合是主体，第二个集合是客体，使用pading补全到相同长度
-          [{(0, 2)}, {(21, 22), (5, 9)}]
-          [[[ 0  2]
-            [ 0  0]]
-
-          [[21 22]
-            [ 5  9]]]
-          [['九玄珠', '连载网站', '纵横中文网'], ['九玄珠', '作者', '龙马']]
-          """
-
-          entity_labels = sequence_padding([list(l) for l in entity_labels])  # [subject/object=2, 实体个数, 实体起终点]
-          head_labels = sequence_padding([list(l) for l in head_labels])  # [关系个数, 该关系下subject/object配对数, subject/object起点]
-          tail_labels = sequence_padding([list(l) for l in tail_labels])  # [关系个数, 该关系下subject/object配对数, subject/object终点]
-
-
-          token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
-          batch_token_ids.append(token_ids)  # 前面已经限制了长度
-          batch_attention_mask.append([1] * len(token_ids))
-          batch_token_type_ids.append([0] * len(token_ids))
-          batch_head_labels.append(head_labels)
-          batch_tail_labels.append(tail_labels)
-          batch_entity_labels.append(entity_labels)
-          callback.append((text, callback_text_labels))
+          if spoes:
+            # subject标签
+            subject_labels = np.zeros((len(tokens), 2))
+            for s in spoes:
+                subject_labels[s[0], 0] = 1  # subject首
+                subject_labels[s[1], 1] = 1  # subject尾
+            start, end = np.array(list(spoes.keys())).T  
+            start = np.random.choice(start)
+            end = np.random.choice(end[end >= start])
+            # 这里取出的可能不是一个真实的subject
+            subject_ids = (start, end)  
+            # 对应的object标签
+            object_labels = np.zeros((len(tokens), len(self.tag2id), 2))
+            for o in spoes.get(subject_ids, []):
+                object_labels[o[0], o[2], 0] = 1
+                object_labels[o[1], o[2], 1] = 1
+            # 构建batch
+            token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+            batch_token_ids.append(token_ids)  # 前面已经限制了长度
+            batch_attention_mask.append([1] * len(token_ids))
+            batch_token_type_ids.append([0] * len(token_ids))
+            batch_subject_labels.append(subject_labels)
+            batch_object_labels.append(object_labels)
+            batch_subject_ids.append(subject_ids)
+            callback.append((text, callback_text_labels))
       batch_token_ids = torch.tensor(sequence_padding(batch_token_ids, length=self.maxlen), dtype=torch.long, device=self.device)
       attention_mask = torch.tensor(sequence_padding(batch_attention_mask, length=self.maxlen), dtype=torch.long, device=self.device)
       token_type_ids = torch.tensor(sequence_padding(batch_token_type_ids, length=self.maxlen), dtype=torch.long, device=self.device)
-      batch_head_labels = torch.tensor(sequence_padding(batch_head_labels, seq_dims=2), dtype=torch.float, device=self.device)
-      batch_tail_labels = torch.tensor(sequence_padding(batch_tail_labels, seq_dims=2), dtype=torch.float, device=self.device)
-      batch_entity_labels = torch.tensor(sequence_padding(batch_entity_labels, seq_dims=2), dtype=torch.float, device=self.device)
+      batch_subject_labels = torch.tensor(sequence_padding(batch_subject_labels, length=self.maxlen), dtype=torch.float, device=self.device)
+      batch_object_labels = torch.tensor(sequence_padding(batch_object_labels, length=self.maxlen), dtype=torch.float, device=self.device)
+      batch_subject_ids = torch.tensor(batch_subject_ids, dtype=torch.long, device=self.device)
 
-      return batch_token_ids, attention_mask, token_type_ids, batch_head_labels, batch_tail_labels, batch_entity_labels, callback
+      return batch_token_ids, attention_mask, token_type_ids, batch_subject_labels, batch_object_labels, batch_subject_ids, callback
 
 
 if __name__ == "__main__":
@@ -161,21 +147,17 @@ if __name__ == "__main__":
     tag2id[label] = i
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   collate = Collate(max_len=max_len, tag2id=tag2id, device=device, tokenizer=tokenizer)
-  # collate.collate_fn(train_dataset[:16])
+  # collate.collate_fn(train_dataset[:20])
   batch_size = 2
-  train_dataset = train_dataset[:10]
   train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate.collate_fn) 
 
-  """
-  torch.Size([2, 256])
-  torch.Size([2, 256])
-  torch.Size([2, 256])
-  torch.Size([2, 49, 1, 2])
-  torch.Size([2, 49, 1, 2])
-  torch.Size([2, 2, 1, 2])
-  """
   for i, batch in enumerate(train_dataloader):
-    leng = len(batch) - 1
-    for j in range(leng):
-      print(batch[j].shape)
+    print(batch)
+    print(batch[0].shape)
+    print(batch[1].shape)
+    print(batch[2].shape)
+    print(batch[3].shape)
+    print(batch[4].shape)
+    print(batch[5].shape)
+    print(batch[6])
     break

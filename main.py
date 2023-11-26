@@ -9,7 +9,7 @@ from transformers import BertTokenizer
 
 import config
 import data_loader
-from model import GlobalPointerRe
+from model import Casrel
 from utils.common_utils import set_seed, set_logger, read_json, fine_grade_tokenize
 from utils.train_utils import load_model_and_parallel, build_optimizer_and_scheduler, save_model
 from utils.metric_utils import calculate_metric_relation, get_p_r_f
@@ -22,6 +22,63 @@ logger = logging.getLogger(__name__)
 if args.use_tensorboard == "True":
     writer = SummaryWriter(log_dir='./tensorboard')
   
+def get_spo(object_preds, subject_ids, length, example, id2tag):
+  # object_preds:[batchsize, maxlen, num_labels, 2]
+  num_label = object_preds.shape[2]
+  num_subject = len(subject_ids)
+  relations = []
+  subjects = []
+  objects = []
+  # print(object_preds.shape, subject, length, example)
+  for b in range(num_subject):
+    tmp = object_preds[b, ...]
+    subject_start, subject_end = subject_ids[b].cpu().numpy()
+    subject = example[subject_start:subject_end+1]
+    if subject not in subjects:
+      subjects.append(subject)
+    for label_id in range(num_label):
+      start = tmp[:, label_id, :1]
+      end = tmp[:, label_id, 1:]
+      start = start.squeeze()[:length]
+      end = end.squeeze()[:length]
+      for i, st in enumerate(start):
+        if st > 0.5:
+          s = i
+          for j in range(i, length):
+            if end[j] > 0.5:
+              e = j
+              object = example[s:e+1]
+              if object not in objects:
+                objects.append(object)
+              if (subject, id2tag[label_id], object) not in relations:
+                relations.append((subject, id2tag[label_id], object))
+              break
+  # print(relations) 
+  return relations, subjects, objects
+  
+
+
+def get_subject_ids(subject_preds, mask):
+  lengths = torch.sum(mask, -1)
+  starts = subject_preds[:, :, :1]
+  ends = subject_preds[:, :, 1:]
+  subject_ids = []
+  for start, end, l in zip(starts, ends, lengths):
+    tmp = []
+    start = start.squeeze()[:l]
+    end = end.squeeze()[:l]
+    for i, st in enumerate(start):
+      if st > 0.5:
+        s = i
+        for j in range(i, l):
+          if end[j] > 0.5:
+            e = j
+            if (s,e) not in subject_ids:
+              tmp.append([s,e])
+            break
+
+    subject_ids.append(tmp)
+  return subject_ids
 
 class BertForRe:
     def __init__(self, args, train_loader, dev_loader, test_loader, id2tag, tag2id, model, device):
@@ -41,29 +98,24 @@ class BertForRe:
         # Train
         global_step = 0
         self.model.zero_grad()
-        eval_steps = args.eval_steps #每多少个step打印损失及进行验证
+        eval_steps = 500 #每多少个step打印损失及进行验证
         best_f1 = 0.0
         for epoch in range(self.args.train_epochs):
             for step, batch_data in enumerate(self.train_loader):
                 self.model.train()
                 for batch in batch_data[:-1]:
                     batch = batch.to(self.device)
-                # batch_token_ids, attention_mask, token_type_ids, batch_head_labels, batch_tail_labels, batch_entity_ids
-                all_loss = self.model(batch_data[0], batch_data[1], batch_data[2], batch_data[3], batch_data[4], batch_data[5])
-                loss = all_loss['loss']
-                entity_loss = all_loss['entity_loss']
-                head_loss = all_loss['head_loss']
-                tail_loss = all_loss['tail_loss']
+                # batch_token_ids, attention_mask, token_type_ids, batch_subject_labels, batch_object_labels, batch_subject_ids
+                loss = self.model(batch_data[0], batch_data[1], batch_data[2], batch_data[3], batch_data[4], batch_data[5])
+
                 # loss.backward(loss.clone().detach())
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.args.max_grad_norm)
                 self.optimizer.step()
                 self.scheduler.step()
                 self.model.zero_grad()
-                logger.info('【train】 epoch:{} {}/{} loss:{:.4f} entity_loss:{:.4f} head_loss:{:.4f} tail_loss:{:.4f}'.format(
-                  epoch, global_step, self.t_total, loss.item(), entity_loss.item(), head_loss.item(), tail_loss.item()))
+                logger.info('【train】 epoch:{} {}/{} loss:{:.4f}'.format(epoch, global_step, self.t_total, loss.item()))
                 global_step += 1
-              
                 if self.args.use_tensorboard == "True":
                     writer.add_scalar('data/loss', loss.item(), global_step)
                 if global_step % eval_steps == 0:
@@ -82,69 +134,57 @@ class BertForRe:
       objects = []
       all_examples = []
       with torch.no_grad():
-          for eval_step, dev_batch_data in enumerate(dev_loader):
+          for eval_step, dev_batch_data in enumerate(self.dev_loader):
               for dev_batch in dev_batch_data[:-1]:
-                  dev_batch = dev_batch.to(device)
+                  dev_batch = dev_batch.to(self.device)
               
-              entity_output, head_output, tail_output = model(dev_batch_data[0], dev_batch_data[1], dev_batch_data[2])
+              seq_output, subject_preds = self.model.predict_subject(dev_batch_data[0], dev_batch_data[1],dev_batch_data[2])
+              # 注意这里需要先获取subject，然后再来获取object和关系，和训练直接使用subject_ids不一样
               cur_batch_size = dev_batch_data[0].shape[0]
               dev_examples = dev_batch_data[-1]
               true_spos += [i[1] for i in dev_examples]
               all_examples += [i[0] for i in dev_examples]
+              subject_labels = dev_batch_data[3].cpu().numpy()
+              object_labels = dev_batch_data[4].cpu().numpy()
+              subject_ids = get_subject_ids(subject_preds, dev_batch_data[1])
+
+              example_lengths = torch.sum(dev_batch_data[1].cpu(), -1)
               
-              # torch.Size([8, 2, 256, 256]) torch.Size([8, 49, 256, 256]) torch.Size([8, 49, 256, 256])
-              # print(entity_output.shape, head_output.shape, tail_output.shape)
               for i in range(cur_batch_size):
+                seq_output_tmp = seq_output[i, ...]
+                subject_ids_tmp = subject_ids[i]
+                length = example_lengths[i]
                 example = dev_examples[i][0]
-                l = len(example)
-                subject = []
-                object = []
-                subject_ids = []
-                object_ids = []
-                spo = []
-                single_entity_output = entity_output[i, ...]
-                single_head_output = head_output[i, ...]
-                single_tail_output = tail_output[i, ...]
-                single_head_output = single_head_output[:, 1:l+1:, 1:l+1]
-                single_tail_output = single_tail_output[:, 1:l+1:, 1:l+1]
-                subject_entity_outpout = single_entity_output[:1, 1:l+1:, 1:l+1].squeeze()
-                object_entity_output = single_entity_output[1:, 1:l+1:, 1:l+1].squeeze()
-                # 注意这里阈值为什么是0
-                subject_entity_outpout = np.where(subject_entity_outpout.cpu().numpy() > 0)
-                object_entity_output = np.where(object_entity_output.cpu().numpy() > 0)
-                for m,n in zip(*subject_entity_outpout):
-                  subject_ids.append((m, n))
-                for m,n in zip(*object_entity_output):
-                  object_ids.append((m, n))
-                for sh, st in subject_ids:
-                  for oh, ot in object_ids:
-                    # print(example[sh:st+1], example[oh:ot+1])
-                    # print(np.where(single_head_output[:, sh, oh].cpu().numpy() > 0))
-                    # print(np.where(single_tail_output[:, st, ot].cpu().numpy() > 0))
-                    subj = example[sh:st+1]
-                    obj = example[oh:ot+1]
-                    subject.append(subj)
-                    object.append(obj)
+                if subject_ids_tmp:
+                  seq_output_tmp = seq_output_tmp.unsqueeze(0).repeat(len(subject_ids_tmp), 1, 1)
+                  subject_ids_tmp = torch.tensor(subject_ids_tmp, dtype=torch.long, device=device)
+                  if len(seq_output_tmp.shape) == 2:
+                    seq_output_tmp = seq_output_tmp.unsqueeze(0)
+                  object_preds = model.predict_object([seq_output_tmp, subject_ids_tmp])
+                  spo, subject, object = get_spo(object_preds, subject_ids_tmp, length, example, self.id2tag)
+                  spos.append(spo)
+                  subjects.append(subject)
+                  objects.append(object)
+                else:
+                  spos.append([])
+                  subjects.append([])
+                  objects.append([])
 
-                    re1 = np.where(single_head_output[:, sh, oh].cpu().numpy() > 0)[0]
-                    re2 = np.where(single_tail_output[:, st, ot].cpu().numpy() > 0)[0]
-                    res = set(re1) & set(re2)
-                    for r in res:
-                      spo.append((subj, self.id2tag[r], obj))
-                subjects.append(subject)
-                objects.append(object)
-                spos.append(spo)
-
-
+          # for m,n, ex in zip(spos, true_spos, all_examples):
+          #   print(ex)
+          #   print(m, n)
+          #   print('='*100)
           tp, fp, fn = calculate_metric_relation(spos, true_spos)
           p, r, f1 = get_p_r_f(tp, fp, fn)
+          # print("========metric========")
+          # print("precision:{} recall:{} f1:{}".format(p, r, f1))
 
           return p, r, f1
                 
                 
 
     def test(self, model_path):
-        model = GlobalPointerRe(self.args)
+        model = Casrel(self.args, self.tag2id)
         model, device = load_model_and_parallel(model, self.args.gpu_ids, model_path)
         model.eval()
         spos = []
@@ -157,64 +197,45 @@ class BertForRe:
                 for dev_batch in dev_batch_data[:-1]:
                     dev_batch = dev_batch.to(device)
                 
-                entity_output, head_output, tail_output = model(dev_batch_data[0], dev_batch_data[1], dev_batch_data[2])
+                seq_output, subject_preds = model.predict_subject(dev_batch_data[0], dev_batch_data[1],dev_batch_data[2])
+                # 注意这里需要先获取subject，然后再来获取object和关系，和训练直接使用subject_ids不一样
                 cur_batch_size = dev_batch_data[0].shape[0]
                 dev_examples = dev_batch_data[-1]
                 true_spos += [i[1] for i in dev_examples]
                 all_examples += [i[0] for i in dev_examples]
+                subject_labels = dev_batch_data[3].cpu().numpy()
+                object_labels = dev_batch_data[4].cpu().numpy()
+                subject_ids = get_subject_ids(subject_preds, dev_batch_data[1])
+
+                example_lengths = torch.sum(dev_batch_data[1].cpu(), -1)
                 
-                # torch.Size([8, 2, 256, 256]) torch.Size([8, 49, 256, 256]) torch.Size([8, 49, 256, 256])
-                # print(entity_output.shape, head_output.shape, tail_output.shape)
                 for i in range(cur_batch_size):
+                  seq_output_tmp = seq_output[i, ...]
+                  subject_ids_tmp = subject_ids[i]
+                  length = example_lengths[i]
                   example = dev_examples[i][0]
-                  l = len(example)
-                  subject = []
-                  object = []
-                  subject_ids = []
-                  object_ids = []
-                  spo = []
-                  single_entity_output = entity_output[i, ...]
-                  single_head_output = head_output[i, ...]
-                  single_tail_output = tail_output[i, ...]
-                  single_head_output = single_head_output[:, 1:l+1:, 1:l+1]
-                  single_tail_output = single_tail_output[:, 1:l+1:, 1:l+1]
-                  subject_entity_outpout = single_entity_output[:1, 1:l+1:, 1:l+1].squeeze()
-                  object_entity_output = single_entity_output[1:, 1:l+1:, 1:l+1].squeeze()
-                  # 注意这里阈值为什么是0
-                  subject_entity_outpout = np.where(subject_entity_outpout.cpu().numpy() > 0)
-                  object_entity_output = np.where(object_entity_output.cpu().numpy() > 0)
-                  for m,n in zip(*subject_entity_outpout):
-                    subject_ids.append((m, n))
-                  for m,n in zip(*object_entity_output):
-                    object_ids.append((m, n))
-                  for sh, st in subject_ids:
-                    for oh, ot in object_ids:
-                      # print(example[sh:st+1], example[oh:ot+1])
-                      # print(np.where(single_head_output[:, sh, oh].cpu().numpy() > 0))
-                      # print(np.where(single_tail_output[:, st, ot].cpu().numpy() > 0))
-                      subj = example[sh:st+1]
-                      obj = example[oh:ot+1]
-                      subject.append(subj)
-                      object.append(obj)
-  
-                      re1 = np.where(single_head_output[:, sh, oh].cpu().numpy() > 0)[0]
-                      re2 = np.where(single_tail_output[:, st, ot].cpu().numpy() > 0)[0]
-                      res = set(re1) & set(re2)
-                      for r in res:
-                        spo.append((subj, self.id2tag[r], obj))
-                  subjects.append(subject)
-                  objects.append(object)
-                  spos.append(spo)
+                  if subject_ids_tmp:
+                    seq_output_tmp = seq_output_tmp.unsqueeze(0).repeat(len(subject_ids_tmp), 1, 1)
+                    subject_ids_tmp = torch.tensor(subject_ids_tmp, dtype=torch.long, device=device)
+                    if len(seq_output_tmp.shape) == 2:
+                      seq_output_tmp = seq_output_tmp.unsqueeze(0)
+                    object_preds = model.predict_object([seq_output_tmp, subject_ids_tmp])
+                    spo, subject, object = get_spo(object_preds, subject_ids_tmp, length, example, self.id2tag)
+                    spos.append(spo)
+                    subjects.append(subject)
+                    objects.append(object)
+                  else:
+                    spos.append([])
+                    subjects.append([])
+                    objects.append([])
 
 
-            # for i, (m, n, ex) in enumerate(zip(spos, true_spos, all_examples)):
-            #   if i <= 10:
-            #     print(ex)
-            #     print(m, n)
-            #     print('='*100)
-            # print(len(all_examples))
-            # print(len(true_spos))
-            # print(len(spos))
+
+            for i, (m,n, ex) in enumerate(zip(spos, true_spos, all_examples)):
+              if i <= 10:
+                print(ex)
+                print(m, n)
+                print('='*100)
             tp, fp, fn = calculate_metric_relation(spos, true_spos)
             p, r, f1 = get_p_r_f(tp, fp, fn)
             print("========metric========")
@@ -226,9 +247,8 @@ class BertForRe:
         model.eval()
         with torch.no_grad():
             tokens = [i for i in raw_text]
-            if len(tokens) > self.args.max_seq_len - 2:
-              tokens = tokens[:self.args.max_seq_len - 2]
-            tokens = ['[CLS]'] + tokens + ['[SEP]']
+            if len(tokens) > self.args.max_seq_len:
+              tokens = tokens[:self.args.max_seq_len]
             token_ids = tokenizer.convert_tokens_to_ids(tokens)
             attention_masks = [1] * len(token_ids)
             token_type_ids = [0] * len(token_ids)
@@ -242,58 +262,34 @@ class BertForRe:
             token_ids = torch.from_numpy(np.array(token_ids)).unsqueeze(0).to(self.device)
             attention_masks = torch.from_numpy(np.array(attention_masks, dtype=np.uint8)).unsqueeze(0).to(self.device)
             token_type_ids = torch.from_numpy(np.array(token_type_ids)).unsqueeze(0).to(self.device)
-            entity_output, head_output, tail_output = model(token_ids, attention_masks, token_type_ids)
+            seq_output, subject_preds = model.predict_subject(token_ids, attention_masks, token_type_ids)
+            subject_ids = get_subject_ids(subject_preds, attention_masks)
 
-            cur_batch_size = entity_output.shape[0]
+            cur_batch_size = seq_output.shape[0]
             spos = []
             subjects = []
             objects = []
-            # print(entity_output.shape, head_output.shape, tail_output.shape)
             for i in range(cur_batch_size):
+                seq_output_tmp = seq_output[i, ...]
+                subject_ids_tmp = subject_ids[i]
+                length = len(tokens)
                 example = raw_text
-                l = len(example)
-                subject = []
-                object = []
-                subject_ids = []
-                object_ids = []
-                spo = []
-                single_entity_output = entity_output[i, ...]
-                single_head_output = head_output[i, ...]
-                single_tail_output = tail_output[i, ...]
-                single_head_output = single_head_output[:, 1:l+1:, 1:l+1]
-                single_tail_output = single_tail_output[:, 1:l+1:, 1:l+1]
-                subject_entity_outpout = single_entity_output[:1, 1:l+1:, 1:l+1].squeeze()
-                object_entity_output = single_entity_output[1:, 1:l+1:, 1:l+1].squeeze()
-                # 注意这里阈值为什么是0
-                subject_entity_outpout = np.where(subject_entity_outpout.cpu().numpy() > 0)
-                object_entity_output = np.where(object_entity_output.cpu().numpy() > 0)
-                for m,n in zip(*subject_entity_outpout):
-                  subject_ids.append((m, n))
-                for m,n in zip(*object_entity_output):
-                  object_ids.append((m, n))
-                for sh, st in subject_ids:
-                  for oh, ot in object_ids:
-                    # print(example[sh:st+1], example[oh:ot+1])
-                    # print(np.where(single_head_output[:, sh, oh].cpu().numpy() > 0))
-                    # print(np.where(single_tail_output[:, st, ot].cpu().numpy() > 0))
-                    subj = example[sh:st+1]
-                    obj = example[oh:ot+1]
-                    subject.append(subj)
-                    object.append(obj)
+                if any(subject_ids_tmp):
+                  seq_output_tmp = seq_output_tmp.unsqueeze(0).repeat(len(subject_ids_tmp), 1, 1)
 
-                    re1 = np.where(single_head_output[:, sh, oh].cpu().numpy() > 0)[0]
-                    re2 = np.where(single_tail_output[:, st, ot].cpu().numpy() > 0)[0]
-                    res = set(re1) & set(re2)
-                    for r in res:
-                      spo.append((subj, self.id2tag[r], obj))
+                  subject_ids_tmp = torch.tensor(subject_ids_tmp, dtype=torch.long, device=device)
+                  if len(seq_output_tmp.shape) == 2:
+                    seq_output_tmp = seq_output_tmp.unsqueeze(0)
+                  object_preds = model.predict_object([seq_output_tmp, subject_ids_tmp])
 
-                subjects.append(subject)
-                objects.append(object)
-                spos.append(spo)
+                  spo, subject, object = get_spo(object_preds, subject_ids_tmp, length, example, self.id2tag)
 
+                  subjects.append(subject)
+                  objects.append(object)
+                  spos.append(spo)
             print("文本：", raw_text)
-            print('主体：', [list(set(i)) for i in subjects])
-            print('客体：', [list(set(i)) for i in objects])
+            print('主体：', subjects)
+            print('客体：', objects)
             print('关系：', spos)
             print("="*100)
 
@@ -316,7 +312,7 @@ if __name__ == '__main__':
         max_seq_len = args.max_seq_len
         tokenizer = BertTokenizer.from_pretrained('model_hub/bert-base-chinese/vocab.txt')
 
-        model = GlobalPointerRe(args)
+        model = Casrel(args, tag2id)
         model, device = load_model_and_parallel(model, args.gpu_ids)
 
         collate = data_loader.Collate(max_len=max_seq_len, tag2id=tag2id, device=device, tokenizer=tokenizer)
@@ -339,7 +335,7 @@ if __name__ == '__main__':
         bertForNer.train()
 
         model_path = './checkpoints/bert/model.pt'.format(model_name)
-        bertForNer.test(model_path)
+        # bertForNer.test(model_path)
         
         texts = [
         '查尔斯·阿兰基斯（Charles Aránguiz），1989年4月17日出生于智利圣地亚哥，智利职业足球运动员，司职中场，效力于德国足球甲级联赛勒沃库森足球俱乐部',
@@ -354,7 +350,7 @@ if __name__ == '__main__':
         '斑刺莺是雀形目、剌嘴莺科的一种动物，分布于澳大利亚和新西兰，包括澳大利亚、新西兰、塔斯马尼亚及其附近的岛屿',
         '《课本上学不到的生物学2》是2013年上海科技教育出版社出版的图书',
         ]
-        model = GlobalPointerRe(args)
+        model = Casrel(args, tag2id)
         model, device = load_model_and_parallel(model, args.gpu_ids, model_path)
         for text in texts:
           bertForNer.predict(text, model, tokenizer)
