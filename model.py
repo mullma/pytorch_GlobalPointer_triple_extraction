@@ -192,9 +192,14 @@ class GlobalPointerRe(nn.Module):
         super().__init__()
         self.bert = BertModel.from_pretrained(args.bert_dir, output_hidden_states=True,
                             hidden_dropout_prob=args.dropout_prob)
-        self.entity_output = GlobalPointer(hidden_size=768, heads=2, head_size=64)
-        self.head_output = GlobalPointer(hidden_size=768, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
-        self.tail_output = GlobalPointer(hidden_size=768, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
+        self.lstm_hiden = 156
+        self.hidden_size = 312
+        self.max_seq_len = args.max_seq_len
+        self.bilstm = nn.LSTM(self.hidden_size, self.lstm_hiden, 1, bidirectional=True, batch_first=True,
+                              dropout=0.1)
+        self.entity_output = GlobalPointer(self.hidden_size, heads=2, head_size=64)
+        self.head_output = GlobalPointer(self.hidden_size, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
+        self.tail_output = GlobalPointer(self.hidden_size, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
         self.criterion = MyLoss(mask_zero=True)
 
     def forward(self, 
@@ -205,7 +210,11 @@ class GlobalPointerRe(nn.Module):
           tail_labels=None,
           entity_labels=None):
         bert_output = self.bert(token_ids, attention_masks, token_type_ids)  # [btz, seq_len, hdsz]
-        hidden_states = bert_output[0]
+        hidden_states = bert_output[0]  # [batchsize, max_len, 768]
+        batch_size = hidden_states.size(0)
+        hidden_states, _ = self.bilstm(hidden_states)
+        hidden_states = hidden_states.contiguous().view(-1, self.lstm_hiden * 2)
+        hidden_states = hidden_states.contiguous().view(batch_size, self.max_seq_len, -1)
         mask = attention_masks
 
         entity_output = self.entity_output(hidden_states, mask)  # [btz, heads, seq_len, seq_len]

@@ -146,7 +146,7 @@ class Collate:
 if __name__ == "__main__":
   from transformers import BertTokenizer
   max_len = 256
-  tokenizer = BertTokenizer.from_pretrained('model_hub/bert-base-chinese/vocab.txt')
+  tokenizer = BertTokenizer.from_pretrained('model_hub/tinybert-base-chinese/vocab.txt')
   train_dataset = MyDataset(file_path='data/ske/raw_data/train_data.json', 
               tokenizer=tokenizer, 
               max_len=max_len)
