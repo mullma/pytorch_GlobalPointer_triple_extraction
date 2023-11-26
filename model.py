@@ -2,7 +2,7 @@ import math
 import torch
 import numpy as np
 import torch.nn as nn
-from transformers import BertModel
+from transformers import AlbertModel
 
 class SparseMultilabelCategoricalCrossentropy(nn.Module):
     """稀疏版多标签分类的交叉熵
@@ -190,11 +190,11 @@ class GlobalPointer(nn.Module):
 class GlobalPointerRe(nn.Module):
     def __init__(self, args):
         super().__init__()
-        self.bert = BertModel.from_pretrained(args.bert_dir, output_hidden_states=True,
+        self.bert = AlbertModel.from_pretrained(args.bert_dir, output_hidden_states=True,
                             hidden_dropout_prob=args.dropout_prob)
-        self.entity_output = GlobalPointer(hidden_size=768, heads=2, head_size=64)
-        self.head_output = GlobalPointer(hidden_size=768, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
-        self.tail_output = GlobalPointer(hidden_size=768, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
+        self.entity_output = EfficientGlobalPointer(hidden_size=312, heads=2, head_size=64)
+        self.head_output = EfficientGlobalPointer(hidden_size=312, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
+        self.tail_output = EfficientGlobalPointer(hidden_size=312, heads=args.num_tags, head_size=64, RoPE=False, tril_mask=False)
         self.criterion = MyLoss(mask_zero=True)
 
     def forward(self, 

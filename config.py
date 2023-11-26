@@ -13,7 +13,7 @@ class Args:
         parser.add_argument('--output_dir', default='./checkpoints/',
                             help='the output dir for model checkpoints')
 
-        parser.add_argument('--bert_dir', default='./model_hub/bert-base-chinese/',
+        parser.add_argument('--bert_dir', default='./model_hub/albert-base-chinese/',
                             help='bert dir for uer')
         parser.add_argument('--data_dir', default='./data/cner/',
                             help='data dir for uer')

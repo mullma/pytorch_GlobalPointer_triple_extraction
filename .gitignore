@@ -3,3 +3,5 @@
 /data/ske/raw_data/train_data.json
 /model_hub/bert-base-chinese/pytorch_model.bin
 /model_hub/bert-base-chinese/vocab.txt
+/model_hub/albert-base-chinese/pytorch_model.bin
+/model_hub/albert-base-chinese/vocab.txt
