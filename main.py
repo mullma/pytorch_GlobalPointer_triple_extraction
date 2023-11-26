@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from re import template
 import numpy as np
 from collections import defaultdict
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 if args.use_tensorboard == "True":
     writer = SummaryWriter(log_dir='./tensorboard')
-  
+
 
 class BertForRe:
     def __init__(self, args, train_loader, dev_loader, test_loader, id2tag, tag2id, model, device):
@@ -43,6 +44,7 @@ class BertForRe:
         self.model.zero_grad()
         eval_steps = args.eval_steps #每多少个step打印损失及进行验证
         best_f1 = 0.0
+        start_time = time.time()
         for epoch in range(self.args.train_epochs):
             for step, batch_data in enumerate(self.train_loader):
                 self.model.train()
@@ -60,10 +62,14 @@ class BertForRe:
                 self.optimizer.step()
                 self.scheduler.step()
                 self.model.zero_grad()
-                logger.info('【train】 epoch:{} {}/{} loss:{:.4f} entity_loss:{:.4f} head_loss:{:.4f} tail_loss:{:.4f}'.format(
-                  epoch, global_step, self.t_total, loss.item(), entity_loss.item(), head_loss.item(), tail_loss.item()))
+
+                elapsed = time.time() - start_time
+                logger.info(
+                    '【train】 epoch:{} {}/{} loss:{:.4f} entity_loss:{:.4f} head_loss:{:.4f} tail_loss:{:.4f} speed: {:5.2f}ms/b'.format(
+                        epoch, global_step, self.t_total, loss.item(), entity_loss.item(), head_loss.item(),
+                        tail_loss.item(), elapsed))
                 global_step += 1
-              
+                start_time = time.time()
                 if self.args.use_tensorboard == "True":
                     writer.add_scalar('data/loss', loss.item(), global_step)
                 if global_step % eval_steps == 0:
@@ -85,13 +91,13 @@ class BertForRe:
           for eval_step, dev_batch_data in enumerate(dev_loader):
               for dev_batch in dev_batch_data[:-1]:
                   dev_batch = dev_batch.to(device)
-              
+
               entity_output, head_output, tail_output = model(dev_batch_data[0], dev_batch_data[1], dev_batch_data[2])
               cur_batch_size = dev_batch_data[0].shape[0]
               dev_examples = dev_batch_data[-1]
               true_spos += [i[1] for i in dev_examples]
               all_examples += [i[0] for i in dev_examples]
-              
+
               # torch.Size([8, 2, 256, 256]) torch.Size([8, 49, 256, 256]) torch.Size([8, 49, 256, 256])
               # print(entity_output.shape, head_output.shape, tail_output.shape)
               for i in range(cur_batch_size):
@@ -140,8 +146,8 @@ class BertForRe:
           p, r, f1 = get_p_r_f(tp, fp, fn)
 
           return p, r, f1
-                
-                
+
+
 
     def test(self, model_path):
         model = GlobalPointerRe(self.args)
@@ -156,13 +162,13 @@ class BertForRe:
             for eval_step, dev_batch_data in enumerate(dev_loader):
                 for dev_batch in dev_batch_data[:-1]:
                     dev_batch = dev_batch.to(device)
-                
+
                 entity_output, head_output, tail_output = model(dev_batch_data[0], dev_batch_data[1], dev_batch_data[2])
                 cur_batch_size = dev_batch_data[0].shape[0]
                 dev_examples = dev_batch_data[-1]
                 true_spos += [i[1] for i in dev_examples]
                 all_examples += [i[0] for i in dev_examples]
-                
+
                 # torch.Size([8, 2, 256, 256]) torch.Size([8, 49, 256, 256]) torch.Size([8, 49, 256, 256])
                 # print(entity_output.shape, head_output.shape, tail_output.shape)
                 for i in range(cur_batch_size):
@@ -196,7 +202,7 @@ class BertForRe:
                       obj = example[oh:ot+1]
                       subject.append(subj)
                       object.append(obj)
-  
+
                       re1 = np.where(single_head_output[:, sh, oh].cpu().numpy() > 0)[0]
                       re2 = np.where(single_tail_output[:, st, ot].cpu().numpy() > 0)[0]
                       res = set(re1) & set(re2)
@@ -311,7 +317,7 @@ if __name__ == '__main__':
         for k,v in enumerate(label_list):
             tag2id[v] = k
             id2tag[k] = v
-        
+
         logger.info(args)
         max_seq_len = args.max_seq_len
         tokenizer = BertTokenizer.from_pretrained('model_hub/tinybert-base-chinese/vocab.txt')
@@ -322,17 +328,17 @@ if __name__ == '__main__':
         collate = data_loader.Collate(max_len=max_seq_len, tag2id=tag2id, device=device, tokenizer=tokenizer)
 
 
-        train_dataset = data_loader.MyDataset(file_path=os.path.join(data_path, 'train_data.json'), 
-                    tokenizer=tokenizer, 
+        train_dataset = data_loader.MyDataset(file_path=os.path.join(data_path, 'train_data.json'),
+                    tokenizer=tokenizer,
                     max_len=max_seq_len)
 
-        train_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate.collate_fn) 
-        dev_dataset = data_loader.MyDataset(file_path=os.path.join(data_path, 'dev_data.json'), 
-                    tokenizer=tokenizer, 
+        train_loader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate.collate_fn)
+        dev_dataset = data_loader.MyDataset(file_path=os.path.join(data_path, 'dev_data.json'),
+                    tokenizer=tokenizer,
                     max_len=max_seq_len)
 
         dev_dataset = dev_dataset[:args.use_dev_num]
-        dev_loader = DataLoader(dev_dataset, batch_size=args.eval_batch_size, shuffle=False, collate_fn=collate.collate_fn) 
+        dev_loader = DataLoader(dev_dataset, batch_size=args.eval_batch_size, shuffle=False, collate_fn=collate.collate_fn)
 
 
         bertForNer = BertForRe(args, train_loader, dev_loader, dev_loader, id2tag, tag2id, model, device)
@@ -340,7 +346,7 @@ if __name__ == '__main__':
 
         model_path = './checkpoints/bert/model.pt'.format(model_name)
         bertForNer.test(model_path)
-        
+
         texts = [
         '查尔斯·阿兰基斯（Charles Aránguiz），1989年4月17日出生于智利圣地亚哥，智利职业足球运动员，司职中场，效力于德国足球甲级联赛勒沃库森足球俱乐部',
         '《离开》是由张宇谱曲，演唱',
