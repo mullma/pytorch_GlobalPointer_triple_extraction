@@ -13,7 +13,7 @@ class Args:
         parser.add_argument('--output_dir', default='./checkpoints/',
                             help='the output dir for model checkpoints')
 
-        parser.add_argument('--bert_dir', default='../model_hub/bert-base-chinese/',
+        parser.add_argument('--bert_dir', default='./model_hub/bert-base-chinese/',
                             help='bert dir for uer')
         parser.add_argument('--data_dir', default='./data/cner/',
                             help='data dir for uer')
@@ -21,11 +21,11 @@ class Args:
                             help='log dir for uer')
 
         # other args
-        parser.add_argument('--num_tags', default=53, type=int,
+        parser.add_argument('--num_tags', default=49, type=int,
                             help='number of tags')
         parser.add_argument('--seed', type=int, default=123, help='random seed')
 
-        parser.add_argument('--gpu_ids', type=str, default='0',
+        parser.add_argument('--gpu_ids', type=str, default='-1',
                             help='gpu ids to use, -1 for cpu, "0,1" for multi gpu')
 
         parser.add_argument('--max_seq_len', default=256, type=int)
@@ -41,7 +41,7 @@ class Args:
                             help='drop out probability')
 
         # 2e-5
-        parser.add_argument('--lr', default=3e-5, type=float,
+        parser.add_argument('--lr', default=1e-5, type=float,
                             help='bert学习率')
         # 2e-3
         parser.add_argument('--other_lr', default=3e-4, type=float,

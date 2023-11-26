@@ -314,7 +314,7 @@ if __name__ == '__main__':
         
         logger.info(args)
         max_seq_len = args.max_seq_len
-        tokenizer = BertTokenizer.from_pretrained('model_hub/chinese-bert-wwm-ext/vocab.txt')
+        tokenizer = BertTokenizer.from_pretrained('model_hub/bert-base-chinese/vocab.txt')
 
         model = GlobalPointerRe(args)
         model, device = load_model_and_parallel(model, args.gpu_ids)
@@ -336,7 +336,7 @@ if __name__ == '__main__':
 
 
         bertForNer = BertForRe(args, train_loader, dev_loader, dev_loader, id2tag, tag2id, model, device)
-        # bertForNer.train()
+        bertForNer.train()
 
         model_path = './checkpoints/bert/model.pt'.format(model_name)
         bertForNer.test(model_path)

@@ -1,0 +1,4 @@
+/tensorboard/
+/.idea/
+/data/ske/raw_data/train_data.json
+/model_hub/bert-base-chinese/
