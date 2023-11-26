@@ -4,6 +4,7 @@ from re import template
 import numpy as np
 from collections import defaultdict
 import torch
+import time
 from torch.utils.data import DataLoader, RandomSampler
 from transformers import BertTokenizer
 
@@ -43,6 +44,7 @@ class BertForRe:
         self.model.zero_grad()
         eval_steps = args.eval_steps #每多少个step打印损失及进行验证
         best_f1 = 0.0
+        start_time = time.time()
         for epoch in range(self.args.train_epochs):
             for step, batch_data in enumerate(self.train_loader):
                 self.model.train()
@@ -60,10 +62,14 @@ class BertForRe:
                 self.optimizer.step()
                 self.scheduler.step()
                 self.model.zero_grad()
-                logger.info('【train】 epoch:{} {}/{} loss:{:.4f} entity_loss:{:.4f} head_loss:{:.4f} tail_loss:{:.4f}'.format(
-                  epoch, global_step, self.t_total, loss.item(), entity_loss.item(), head_loss.item(), tail_loss.item()))
+
+                elapsed = time.time() - start_time
+                logger.info(
+                    '【train】 epoch:{} {}/{} loss:{:.4f} entity_loss:{:.4f} head_loss:{:.4f} tail_loss:{:.4f} speed: {:5.2f}ms/b'.format(
+                        epoch, global_step, self.t_total, loss.item(), entity_loss.item(), head_loss.item(),
+                        tail_loss.item(), elapsed))
                 global_step += 1
-              
+                start_time = time.time()
                 if self.args.use_tensorboard == "True":
                     writer.add_scalar('data/loss', loss.item(), global_step)
                 if global_step % eval_steps == 0:
