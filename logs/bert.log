@@ -156,3 +156,23 @@
 2023-11-26 16:05:35,866 - INFO - train_utils.py - load_model_and_parallel - 97 - Use single gpu in: ['-1']
 2023-11-26 16:06:12,251 - INFO - main.py - train - 117 - 【train】 epoch:0 0/81090 loss:0.4421
 2023-11-26 16:06:42,692 - INFO - main.py - train - 117 - 【train】 epoch:0 1/81090 loss:0.4344
+2023-11-26 17:29:02,588 - INFO - main.py - <module> - 315 - Namespace(adam_epsilon=1e-08, bert_dir='./model_hub/bert-base-chinese/', data_dir='./data/ske', dropout_prob=0.1, eval_batch_size=12, gpu_ids='-1', log_dir='./logs/', lr=3e-05, max_grad_norm=1, max_seq_len=256, num_tags=49, other_lr=0.0003, output_dir='./checkpoints/', seed=123, train_batch_size=32, train_epochs=15, use_dev_num=32, use_tensorboard='True', warmup_proportion=0.1, weight_decay=0.01)
+2023-11-26 17:29:04,097 - INFO - train_utils.py - load_model_and_parallel - 97 - Use single gpu in: ['-1']
+2023-11-26 17:29:41,462 - INFO - main.py - train - 120 - 【train】 epoch:0 0/81090 loss:0.4421 speed: 32.09ms/b
+2023-11-26 17:30:10,339 - INFO - main.py - train - 120 - 【train】 epoch:0 1/81090 loss:0.4344 speed: 28.86ms/b
+2023-11-26 17:30:45,352 - INFO - main.py - train - 120 - 【train】 epoch:0 2/81090 loss:0.4348 speed: 35.01ms/b
+2023-11-26 17:31:14,238 - INFO - main.py - train - 120 - 【train】 epoch:0 3/81090 loss:0.4376 speed: 28.88ms/b
+2023-11-26 17:31:55,764 - INFO - main.py - train - 120 - 【train】 epoch:0 4/81090 loss:0.4435 speed: 41.52ms/b
+2023-11-26 17:32:31,146 - INFO - main.py - train - 120 - 【train】 epoch:0 5/81090 loss:0.4352 speed: 35.38ms/b
+2023-11-26 17:32:59,548 - INFO - main.py - train - 120 - 【train】 epoch:0 6/81090 loss:0.4403 speed: 28.40ms/b
+2023-11-26 17:33:28,064 - INFO - main.py - train - 120 - 【train】 epoch:0 7/81090 loss:0.4231 speed: 28.51ms/b
+2023-11-26 17:33:57,703 - INFO - main.py - train - 120 - 【train】 epoch:0 8/81090 loss:0.4296 speed: 29.64ms/b
+2023-11-26 17:34:30,994 - INFO - main.py - train - 120 - 【train】 epoch:0 9/81090 loss:0.4300 speed: 33.29ms/b
+2023-11-26 17:35:04,362 - INFO - main.py - train - 120 - 【train】 epoch:0 10/81090 loss:0.4147 speed: 33.37ms/b
+2023-11-26 17:35:35,221 - INFO - main.py - train - 120 - 【train】 epoch:0 11/81090 loss:0.4137 speed: 30.86ms/b
+2023-11-26 17:36:04,116 - INFO - main.py - train - 120 - 【train】 epoch:0 12/81090 loss:0.4017 speed: 28.89ms/b
+2023-11-26 17:36:42,156 - INFO - main.py - train - 120 - 【train】 epoch:0 13/81090 loss:0.4061 speed: 38.04ms/b
+2023-11-26 17:37:12,402 - INFO - main.py - train - 120 - 【train】 epoch:0 14/81090 loss:0.4133 speed: 30.24ms/b
+2023-11-26 17:37:41,287 - INFO - main.py - train - 120 - 【train】 epoch:0 15/81090 loss:0.3948 speed: 28.88ms/b
+2023-11-26 17:38:10,018 - INFO - main.py - train - 120 - 【train】 epoch:0 16/81090 loss:0.3860 speed: 28.73ms/b
+2023-11-26 17:38:44,420 - INFO - main.py - train - 120 - 【train】 epoch:0 17/81090 loss:0.3699 speed: 34.40ms/b

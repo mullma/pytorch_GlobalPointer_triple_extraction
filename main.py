@@ -14,7 +14,7 @@ from utils.common_utils import set_seed, set_logger, read_json, fine_grade_token
 from utils.train_utils import load_model_and_parallel, build_optimizer_and_scheduler, save_model
 from utils.metric_utils import calculate_metric_relation, get_p_r_f
 from tensorboardX import SummaryWriter
-
+import time
 args = config.Args().get_parser()
 set_seed(args.seed)
 logger = logging.getLogger(__name__)
@@ -100,6 +100,7 @@ class BertForRe:
         self.model.zero_grad()
         eval_steps = 500 #每多少个step打印损失及进行验证
         best_f1 = 0.0
+        start_time = time.time()
         for epoch in range(self.args.train_epochs):
             for step, batch_data in enumerate(self.train_loader):
                 self.model.train()
@@ -114,8 +115,11 @@ class BertForRe:
                 self.optimizer.step()
                 self.scheduler.step()
                 self.model.zero_grad()
-                logger.info('【train】 epoch:{} {}/{} loss:{:.4f}'.format(epoch, global_step, self.t_total, loss.item()))
+
+                elapsed = time.time() - start_time
+                logger.info('【train】 epoch:{} {}/{} loss:{:.4f} speed: {:5.2f}ms/b'.format(epoch, global_step, self.t_total, loss.item(), elapsed))
                 global_step += 1
+                start_time = time.time()
                 if self.args.use_tensorboard == "True":
                     writer.add_scalar('data/loss', loss.item(), global_step)
                 if global_step % eval_steps == 0:
