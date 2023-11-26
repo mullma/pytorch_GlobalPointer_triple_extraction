@@ -314,7 +314,7 @@ if __name__ == '__main__':
         
         logger.info(args)
         max_seq_len = args.max_seq_len
-        tokenizer = BertTokenizer.from_pretrained('model_hub/bert-base-chinese/vocab.txt')
+        tokenizer = BertTokenizer.from_pretrained('model_hub/roberta-base-chinese/vocab.txt')
 
         model = GlobalPointerRe(args)
         model, device = load_model_and_parallel(model, args.gpu_ids)

@@ -163,3 +163,10 @@
 2023-11-26 11:08:21,347 - INFO - train_utils.py - load_model_and_parallel - 97 - Use single gpu in: ['-1']
 2023-11-26 11:09:13,283 - INFO - main.py - train - 63 - 【train】 epoch:0 0/81090 loss:267.5727 entity_loss:16.2745 head_loss:392.8519 tail_loss:393.5915
 2023-11-26 11:09:59,996 - INFO - main.py - train - 63 - 【train】 epoch:0 1/81090 loss:257.9206 entity_loss:15.7621 head_loss:378.6856 tail_loss:379.3141
+2023-11-26 14:49:08,390 - INFO - main.py - <module> - 315 - Namespace(adam_epsilon=1e-08, bert_dir='./model_hub/bert-base-chinese/', data_dir='./data/ske', dropout_prob=0.1, eval_batch_size=12, eval_steps=32, gpu_ids='-1', log_dir='./logs/', lr=1e-05, max_grad_norm=1, max_seq_len=256, num_tags=49, other_lr=0.0003, output_dir='./checkpoints/', seed=123, train_batch_size=32, train_epochs=15, use_dev_num=32, use_tensorboard='True', warmup_proportion=0.1, weight_decay=0.01)
+2023-11-26 14:49:09,875 - INFO - train_utils.py - load_model_and_parallel - 97 - Use single gpu in: ['-1']
+2023-11-26 14:50:03,170 - INFO - main.py - train - 63 - 【train】 epoch:0 0/81090 loss:267.5812 entity_loss:16.3247 head_loss:392.8173 tail_loss:393.6017
+2023-11-26 14:51:46,016 - INFO - main.py - <module> - 315 - Namespace(adam_epsilon=1e-08, bert_dir='./model_hub/bert-base-chinese/', data_dir='./data/ske', dropout_prob=0.1, eval_batch_size=12, eval_steps=32, gpu_ids='-1', log_dir='./logs/', lr=1e-05, max_grad_norm=1, max_seq_len=256, num_tags=49, other_lr=0.0003, output_dir='./checkpoints/', seed=123, train_batch_size=32, train_epochs=15, use_dev_num=32, use_tensorboard='True', warmup_proportion=0.1, weight_decay=0.01)
+2023-11-26 14:51:47,491 - INFO - train_utils.py - load_model_and_parallel - 97 - Use single gpu in: ['-1']
+2023-11-26 14:52:34,993 - INFO - main.py - train - 63 - 【train】 epoch:0 0/81090 loss:267.5812 entity_loss:16.3247 head_loss:392.8173 tail_loss:393.6017
+2023-11-26 14:53:26,564 - INFO - main.py - train - 63 - 【train】 epoch:0 1/81090 loss:257.9290 entity_loss:15.8098 head_loss:378.6671 tail_loss:379.3101
