@@ -169,3 +169,28 @@
 2023-11-26 17:56:20,630 - INFO - main.py - train - 67 - 【train】 epoch:0 14/81090 loss:256.5724 entity_loss:15.7474 head_loss:376.3469 tail_loss:377.6230 speed: 71.12ms/b
 2023-11-26 17:57:17,139 - INFO - main.py - train - 67 - 【train】 epoch:0 15/81090 loss:274.5144 entity_loss:16.8895 head_loss:402.6678 tail_loss:403.9861 speed: 56.51ms/b
 2023-11-26 17:58:09,946 - INFO - main.py - train - 67 - 【train】 epoch:0 16/81090 loss:275.9294 entity_loss:16.9678 head_loss:404.6689 tail_loss:406.1515 speed: 52.80ms/b
+2023-11-26 18:43:29,246 - INFO - main.py - <module> - 321 - Namespace(adam_epsilon=1e-08, bert_dir='./model_hub/bert-base-chinese/', data_dir='./data/ske', dropout_prob=0.1, eval_batch_size=12, eval_steps=32, gpu_ids='-1', log_dir='./logs/', lr=1e-05, max_grad_norm=1, max_seq_len=256, num_tags=49, other_lr=0.0003, output_dir='./checkpoints/', seed=123, train_batch_size=32, train_epochs=15, use_dev_num=32, use_tensorboard='True', warmup_proportion=0.1, weight_decay=0.01)
+2023-11-26 18:43:30,953 - INFO - train_utils.py - load_model_and_parallel - 97 - Use single gpu in: ['-1']
+2023-11-26 18:44:28,277 - INFO - main.py - train - 67 - 【train】 epoch:0 0/81090 loss:274.1717 entity_loss:16.9058 head_loss:402.2278 tail_loss:403.3814 speed: 51.75ms/b
+2023-11-26 18:45:18,246 - INFO - main.py - train - 67 - 【train】 epoch:0 1/81090 loss:256.6770 entity_loss:15.7209 head_loss:376.5012 tail_loss:377.8088 speed: 49.97ms/b
+2023-11-26 18:46:10,526 - INFO - main.py - train - 67 - 【train】 epoch:0 2/81090 loss:269.0973 entity_loss:16.5296 head_loss:394.7513 tail_loss:396.0110 speed: 52.28ms/b
+2023-11-26 18:47:02,438 - INFO - main.py - train - 67 - 【train】 epoch:0 3/81090 loss:263.5986 entity_loss:16.1610 head_loss:386.6591 tail_loss:387.9758 speed: 51.91ms/b
+2023-11-26 18:47:52,230 - INFO - main.py - train - 67 - 【train】 epoch:0 4/81090 loss:262.0669 entity_loss:16.1909 head_loss:384.3964 tail_loss:385.6134 speed: 49.79ms/b
+2023-11-26 18:48:36,109 - INFO - main.py - train - 67 - 【train】 epoch:0 5/81090 loss:265.4700 entity_loss:16.4846 head_loss:389.3178 tail_loss:390.6075 speed: 43.88ms/b
+2023-11-26 18:49:20,000 - INFO - main.py - train - 67 - 【train】 epoch:0 6/81090 loss:254.6439 entity_loss:15.5490 head_loss:373.5656 tail_loss:374.8171 speed: 43.89ms/b
+2023-11-26 18:50:05,097 - INFO - main.py - train - 67 - 【train】 epoch:0 7/81090 loss:259.0671 entity_loss:15.8560 head_loss:379.9945 tail_loss:381.3508 speed: 45.09ms/b
+2023-11-26 18:50:59,102 - INFO - main.py - train - 67 - 【train】 epoch:0 8/81090 loss:259.5800 entity_loss:15.9702 head_loss:380.7346 tail_loss:382.0353 speed: 54.00ms/b
+2023-11-26 18:51:47,199 - INFO - main.py - train - 67 - 【train】 epoch:0 9/81090 loss:260.5485 entity_loss:16.0177 head_loss:382.0992 tail_loss:383.5284 speed: 48.09ms/b
+2023-11-26 18:52:36,121 - INFO - main.py - train - 67 - 【train】 epoch:0 10/81090 loss:274.8178 entity_loss:16.7167 head_loss:403.2352 tail_loss:404.5015 speed: 48.92ms/b
+2023-11-26 18:53:23,533 - INFO - main.py - train - 67 - 【train】 epoch:0 11/81090 loss:257.0414 entity_loss:15.8750 head_loss:377.0292 tail_loss:378.2200 speed: 47.41ms/b
+2023-11-26 18:54:13,078 - INFO - main.py - train - 67 - 【train】 epoch:0 12/81090 loss:276.8197 entity_loss:17.0266 head_loss:406.1174 tail_loss:407.3150 speed: 49.54ms/b
+2023-11-26 18:55:00,639 - INFO - main.py - train - 67 - 【train】 epoch:0 13/81090 loss:250.9238 entity_loss:15.3782 head_loss:368.0872 tail_loss:369.3059 speed: 47.56ms/b
+2023-11-26 18:55:44,341 - INFO - main.py - train - 67 - 【train】 epoch:0 14/81090 loss:256.5724 entity_loss:15.7474 head_loss:376.3469 tail_loss:377.6230 speed: 43.70ms/b
+2023-11-26 18:56:32,555 - INFO - main.py - train - 67 - 【train】 epoch:0 15/81090 loss:274.5144 entity_loss:16.8895 head_loss:402.6678 tail_loss:403.9861 speed: 48.21ms/b
+2023-11-26 18:57:18,970 - INFO - main.py - train - 67 - 【train】 epoch:0 16/81090 loss:275.9294 entity_loss:16.9678 head_loss:404.6689 tail_loss:406.1515 speed: 46.41ms/b
+2023-11-26 18:58:02,757 - INFO - main.py - train - 67 - 【train】 epoch:0 17/81090 loss:255.2874 entity_loss:15.6574 head_loss:374.4333 tail_loss:375.7714 speed: 43.78ms/b
+2023-11-26 18:58:53,557 - INFO - main.py - train - 67 - 【train】 epoch:0 18/81090 loss:260.5949 entity_loss:16.1022 head_loss:382.1034 tail_loss:383.5793 speed: 50.80ms/b
+2023-11-26 18:59:42,242 - INFO - main.py - train - 67 - 【train】 epoch:0 19/81090 loss:274.1765 entity_loss:16.8813 head_loss:402.2016 tail_loss:403.4466 speed: 48.68ms/b
+2023-11-26 19:00:26,466 - INFO - main.py - train - 67 - 【train】 epoch:0 20/81090 loss:257.5312 entity_loss:15.7964 head_loss:377.8659 tail_loss:378.9315 speed: 44.22ms/b
+2023-11-26 19:01:14,890 - INFO - main.py - train - 67 - 【train】 epoch:0 21/81090 loss:266.4056 entity_loss:16.3681 head_loss:390.7372 tail_loss:392.1115 speed: 48.42ms/b
+2023-11-26 19:02:05,608 - INFO - main.py - train - 67 - 【train】 epoch:0 22/81090 loss:252.1879 entity_loss:15.5281 head_loss:369.8932 tail_loss:371.1424 speed: 50.72ms/b
